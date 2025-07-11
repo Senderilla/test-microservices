@@ -1,0 +1,28 @@
+# Stage 1: Build the application
+FROM maven:3.9.6-eclipse-temurin-17-alpine AS builder
+WORKDIR /app
+
+# Copy pom.xml and download dependencies separately for better caching
+COPY pom.xml .
+RUN mvn dependency:go-offline
+
+# Copy source files
+COPY src ./src
+
+# Build the WAR file (skip tests for faster build)
+RUN mvn clean package -DskipTests
+
+# Stage 2: Run on Tomcat
+FROM tomcat:9.0-jdk17-temurin
+EXPOSE 8080
+
+# Optional: Clean up default ROOT webapp if not needed
+# RUN rm -rf /usr/local/tomcat/webapps/ROOT/*
+
+# Copy WAR from builder stage to Tomcat's webapps directory
+COPY --from=builder /app/target/01-maven-web-app.war /usr/local/tomcat/webapps/payment.war
+
+# Optional: If you want it to be accessible via root (i.e., http://host:port/)
+# RUN mv /usr/local/tomcat/webapps/payment.war /usr/local/tomcat/webapps/ROOT.war
+
+# Default command provided by base image (no need to override unless necessary)
